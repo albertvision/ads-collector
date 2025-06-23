@@ -1,29 +1,17 @@
-import datetime
-import time
 import pandas as pd
-from facebook_business.api import FacebookAdsApi
-from facebook_business.adobjects.adaccount import AdAccount
-from facebook_business.adobjects.adsinsights import AdsInsights
-from google.ads.googleads.client import GoogleAdsClient
 from datetime import date, datetime, timedelta
-from tqdm import tqdm
 from google.cloud import bigquery
 import mysql.connector
 import os
 from dotenv import load_dotenv
 import argparse
 
+from providers import PROVIDER_CLASSES
+
 # --- CONFIGURATION ---
 
 load_dotenv()
 
-ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
-AD_ACCOUNT_ID = os.getenv("META_AD_ACCOUNT_ID")
-APP_ID = os.getenv("META_APP_ID")
-APP_SECRET = os.getenv("META_APP_SECRET")
-
-GOOGLEADS_CONFIG = os.getenv("GOOGLEADS_CONFIG")
-GOOGLEADS_CUSTOMER_ID = os.getenv("GOOGLEADS_CUSTOMER_ID")
 
 BG_SERVICE_ACCOUNT_JSON = os.getenv("BG_SERVICE_ACCOUNT_JSON")
 BQ_DATASET = os.getenv("BQ_DATASET")
@@ -38,124 +26,9 @@ MYSQL_TABLE = os.getenv("MYSQL_TABLE", "ads_data")
 # Default timeframe
 DEFAULT_DATE = (date.today() - timedelta(days=1)).isoformat()
 
-# Init API
-FacebookAdsApi.init(APP_ID, APP_SECRET, ACCESS_TOKEN)
-
 # Init BigQuery client
 bq_client = bigquery.Client.from_service_account_json(BG_SERVICE_ACCOUNT_JSON)
 table_ref = bq_client.dataset(BQ_DATASET).table(BQ_TABLE)
-
-def get_dates_between(start_date, end_date):
-    date_list = []
-    current_date = start_date
-    while current_date <= end_date:
-        date_list.append(current_date.isoformat())
-        current_date += timedelta(days=1)
-    
-    return date_list
-
-# Rate-limit safe function
-def safe_api_call(fetch_fn, max_retries=5, initial_wait=60):
-    retries = 0
-    while retries <= max_retries:
-        try:
-            return fetch_fn()
-        except Exception as e:
-            if 'rate' in str(e).lower():
-                wait_time = initial_wait * (2 ** retries)  # exponential backoff
-                print(f"Rate limit hit. Retrying in {wait_time} seconds...")
-                time.sleep(wait_time)
-                retries += 1
-            else:
-                raise
-
-    raise Exception("Max retries exceeded due to rate limits.")
-
-# Fetch insights from Meta Ads API
-def fetch_meta_ads_data(start_date, end_date):
-    account = AdAccount(AD_ACCOUNT_ID)
-    params = {
-        'time_range': {
-            'since': start_date,
-            'until': end_date
-        },
-        'level': 'ad',
-        'fields': [
-            'account_id',
-            'campaign_id',
-            'campaign_name',
-            'adset_id',
-            'adset_name',
-            'ad_id',
-            'ad_name',
-            'spend',
-            'impressions',
-            'clicks',
-            'date_start',
-            'date_stop'
-        ],
-        'limit': 1000,
-    }
-
-    data = []
-    def get_data():
-        return account.get_insights(params=params)
-
-    insights = safe_api_call(get_data)
-
-    while True:
-        data += insights
-        
-        if not insights.load_next_page():
-            break
-
-    return data
-
-# Fetch insights from Google Ads API
-def fetch_google_ads_data(start_date, end_date):
-    if not GOOGLEADS_CONFIG or not GOOGLEADS_CUSTOMER_ID:
-        raise RuntimeError("Google Ads configuration missing")
-
-    client = GoogleAdsClient.load_from_storage(GOOGLEADS_CONFIG)
-    ga_service = client.get_service("GoogleAdsService")
-    query = f"""
-        SELECT
-            customer.id,
-            campaign.id,
-            campaign.name,
-            ad_group.id,
-            ad_group.name,
-            ad_group_ad.ad.id,
-            ad_group_ad.ad.name,
-            metrics.cost_micros,
-            metrics.impressions,
-            metrics.clicks,
-            segments.date
-        FROM ad_group_ad
-        WHERE segments.date BETWEEN '{start_date}' AND '{end_date}'
-    """
-
-    stream = ga_service.search_stream(
-        customer_id=GOOGLEADS_CUSTOMER_ID, query=query
-    )
-    results = []
-    for batch in stream:
-        for row in batch.results:
-            results.append({
-                'account_id': row.customer.id,
-                'campaign_id': row.campaign.id,
-                'campaign_name': row.campaign.name,
-                'adset_id': row.ad_group.id,
-                'adset_name': row.ad_group.name,
-                'ad_id': row.ad_group_ad.ad.id,
-                'ad_name': row.ad_group_ad.ad.name,
-                'spend': row.metrics.cost_micros / 1_000_000,
-                'impressions': row.metrics.impressions,
-                'clicks': row.metrics.clicks,
-                'date_start': str(row.segments.date),
-                'date_stop': str(row.segments.date),
-            })
-    return results
 
 def normalize_data(df, provider):
     df['account_type'] = provider
@@ -271,20 +144,18 @@ if __name__ == '__main__':
     
     data_frames = []
 
-    for provider in AD_PROVIDERS:
-        provider_data = []
-        if provider == 'meta':
-            for loop_date in tqdm(get_dates_between(START_DATE, END_DATE)):
-                provider_data += fetch_meta_ads_data(loop_date, loop_date)
-        elif provider == 'google':
-            provider_data += fetch_google_ads_data(START_DATE, END_DATE)
-        else:
-            print(f"Unknown provider: {provider}")
+    for provider_name in AD_PROVIDERS:
+        provider_cls = PROVIDER_CLASSES.get(provider_name)
+        if not provider_cls:
+            print(f"Unknown provider: {provider_name}")
             continue
+
+        provider = provider_cls()
+        provider_data = provider.fetch_data(START_DATE, END_DATE)
 
         if provider_data:
             df = pd.DataFrame(provider_data)
-            df = normalize_data(df, provider)
+            df = normalize_data(df, provider_name)
             data_frames.append(df)
 
     if not data_frames:
