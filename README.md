@@ -17,6 +17,7 @@ META_ACCESS_TOKEN=<your Meta access token>
 META_AD_ACCOUNT_ID=<ad account id>
 META_APP_ID=<app id>
 META_APP_SECRET=<app secret>
+BG_SERVICE_ACCOUNT_JSON=<BQ service account JSON>
 BQ_DATASET=<BigQuery dataset name>
 BQ_TABLE=<BigQuery table name>
 ```
