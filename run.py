@@ -4,12 +4,14 @@ import pandas as pd
 from facebook_business.api import FacebookAdsApi
 from facebook_business.adobjects.adaccount import AdAccount
 from facebook_business.adobjects.adsinsights import AdsInsights
+from google.ads.googleads.client import GoogleAdsClient
 from datetime import date, datetime, timedelta
 from tqdm import tqdm
 from google.cloud import bigquery
 import mysql.connector
 import os
 from dotenv import load_dotenv
+import argparse
 
 # --- CONFIGURATION ---
 
@@ -19,6 +21,9 @@ ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
 AD_ACCOUNT_ID = os.getenv("META_AD_ACCOUNT_ID")
 APP_ID = os.getenv("META_APP_ID")
 APP_SECRET = os.getenv("META_APP_SECRET")
+
+GOOGLEADS_CONFIG = os.getenv("GOOGLEADS_CONFIG")
+GOOGLEADS_CUSTOMER_ID = os.getenv("GOOGLEADS_CUSTOMER_ID")
 
 BG_SERVICE_ACCOUNT_JSON = os.getenv("BG_SERVICE_ACCOUNT_JSON")
 BQ_DATASET = os.getenv("BQ_DATASET")
@@ -34,7 +39,7 @@ MYSQL_TABLE = os.getenv("MYSQL_TABLE", "ads_data")
 START_DATE = '2025-01-01'
 END_DATE = '2025-01-02'
 #END_DATE = date.today().isoformat()
-OUTPUT_CSV = f"meta_ads_data_{START_DATE}_to_{END_DATE}"
+OUTPUT_CSV = f"ads_data_{START_DATE}_to_{END_DATE}"
 
 # Init API
 FacebookAdsApi.init(APP_ID, APP_SECRET, ACCESS_TOKEN)
@@ -70,7 +75,7 @@ def safe_api_call(fetch_fn, max_retries=5, initial_wait=60):
     raise Exception("Max retries exceeded due to rate limits.")
 
 # Fetch insights from Meta Ads API
-def fetch_ads_data(start_date, end_date):
+def fetch_meta_ads_data(start_date, end_date):
     account = AdAccount(AD_ACCOUNT_ID)
     params = {
         'time_range': {
@@ -109,8 +114,54 @@ def fetch_ads_data(start_date, end_date):
 
     return data
 
-def normalize_data(df):
-    df['account_type'] = 'meta'
+# Fetch insights from Google Ads API
+def fetch_google_ads_data(start_date, end_date):
+    if not GOOGLEADS_CONFIG or not GOOGLEADS_CUSTOMER_ID:
+        raise RuntimeError("Google Ads configuration missing")
+
+    client = GoogleAdsClient.load_from_storage(GOOGLEADS_CONFIG)
+    ga_service = client.get_service("GoogleAdsService")
+    query = f"""
+        SELECT
+            customer.id,
+            campaign.id,
+            campaign.name,
+            ad_group.id,
+            ad_group.name,
+            ad_group_ad.ad.id,
+            ad_group_ad.ad.name,
+            metrics.cost_micros,
+            metrics.impressions,
+            metrics.clicks,
+            segments.date
+        FROM ad_group_ad
+        WHERE segments.date BETWEEN '{start_date}' AND '{end_date}'
+    """
+
+    stream = ga_service.search_stream(
+        customer_id=GOOGLEADS_CUSTOMER_ID, query=query
+    )
+    results = []
+    for batch in stream:
+        for row in batch.results:
+            results.append({
+                'account_id': row.customer.id,
+                'campaign_id': row.campaign.id,
+                'campaign_name': row.campaign.name,
+                'adset_id': row.ad_group.id,
+                'adset_name': row.ad_group.name,
+                'ad_id': row.ad_group_ad.ad.id,
+                'ad_name': row.ad_group_ad.ad.name,
+                'spend': row.metrics.cost_micros / 1_000_000,
+                'impressions': row.metrics.impressions,
+                'clicks': row.metrics.clicks,
+                'date_start': str(row.segments.date),
+                'date_stop': str(row.segments.date),
+            })
+    return results
+
+def normalize_data(df, provider):
+    df['account_type'] = provider
     df['account_id'] = pd.to_numeric(df['account_id'], errors='coerce')
     df['campaign_id'] = pd.to_numeric(df['campaign_id'], errors='coerce')
     df['adset_id'] = pd.to_numeric(df['adset_id'], errors='coerce')
@@ -118,9 +169,14 @@ def normalize_data(df):
     df['spend'] = pd.to_numeric(df['spend'], errors='coerce')
     df['impressions'] = pd.to_numeric(df['impressions'], errors='coerce')
     df['clicks'] = pd.to_numeric(df['clicks'], errors='coerce')
-    df['date'] = pd.to_datetime(df['date_start'])
-    
-    df.drop(columns=['date_start', 'date_stop'], inplace=True)
+    if 'date_start' in df.columns:
+        df['date'] = pd.to_datetime(df['date_start'])
+    else:
+        df['date'] = pd.to_datetime(df['date'])
+
+    for col in ['date_start', 'date_stop']:
+        if col in df.columns:
+            df.drop(columns=[col], inplace=True)
     
     return df
 
@@ -184,7 +240,18 @@ def upload_to_mysql(df, conn):
 
 # Main runner
 if __name__ == '__main__':
-    print(f"Fetching Meta Ads data from {START_DATE} to {END_DATE}...")
+    parser = argparse.ArgumentParser(description="Collect advertising data")
+    parser.add_argument(
+        "--providers",
+        required=True,
+        help="Comma separated list of ad providers (e.g. meta,google)",
+    )
+    args = parser.parse_args()
+    AD_PROVIDERS = [p.strip() for p in args.providers.split(',') if p.strip()]
+
+    print(
+        f"Fetching ads data from {START_DATE} to {END_DATE} for {', '.join(AD_PROVIDERS)}..."
+    )
     
     # cast date ranges
     if isinstance(START_DATE, str):
@@ -192,17 +259,30 @@ if __name__ == '__main__':
     if isinstance(END_DATE, str):
         END_DATE = datetime.strptime(END_DATE, '%Y-%m-%d').date()
     
-    data = []
-    # get all days between start and end date
-    for loop_date in tqdm(get_dates_between(START_DATE, END_DATE)):
-        month_data = fetch_ads_data(loop_date, loop_date)
-        # merge month_data into data
-        data += month_data
-    if(len(data) == 0):
+    data_frames = []
+
+    for provider in AD_PROVIDERS:
+        provider_data = []
+        if provider == 'meta':
+            for loop_date in tqdm(get_dates_between(START_DATE, END_DATE)):
+                provider_data += fetch_meta_ads_data(loop_date, loop_date)
+        elif provider == 'google':
+            provider_data += fetch_google_ads_data(START_DATE, END_DATE)
+        else:
+            print(f"Unknown provider: {provider}")
+            continue
+
+        if provider_data:
+            df = pd.DataFrame(provider_data)
+            df = normalize_data(df, provider)
+            data_frames.append(df)
+
+    if not data_frames:
         print("No data fetched. Exiting.")
         exit(0)
-    data = pd.DataFrame(data)
-    data = normalize_data(data)
+
+    data = pd.concat(data_frames, ignore_index=True)
+    data = data.sort_values('date')
     data.to_csv(f'{OUTPUT_CSV}.csv', index=False)
     data.to_excel(f'{OUTPUT_CSV}.xlsx', index=False)
 
