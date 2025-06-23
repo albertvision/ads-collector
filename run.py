@@ -7,6 +7,7 @@ from facebook_business.adobjects.adsinsights import AdsInsights
 from datetime import date, datetime, timedelta
 from tqdm import tqdm
 from google.cloud import bigquery
+import mysql.connector
 import os
 from dotenv import load_dotenv
 
@@ -22,6 +23,12 @@ APP_SECRET = os.getenv("META_APP_SECRET")
 BG_SERVICE_ACCOUNT_JSON = os.getenv("BG_SERVICE_ACCOUNT_JSON")
 BQ_DATASET = os.getenv("BQ_DATASET")
 BQ_TABLE = os.getenv("BQ_TABLE")
+
+MYSQL_HOST = os.getenv("MYSQL_HOST")
+MYSQL_USER = os.getenv("MYSQL_USER")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
+MYSQL_DATABASE = os.getenv("MYSQL_DATABASE")
+MYSQL_TABLE = os.getenv("MYSQL_TABLE", "ads_data")
 
 # Timeframe
 START_DATE = '2025-01-01'
@@ -142,6 +149,39 @@ def upload_to_bigquery(df):
     job.result()  # Wait for job to complete
     print(f"Uploaded {len(df)} rows to BigQuery.")
 
+def connect_mysql():
+    """Create a MySQL connection using .env settings."""
+    return mysql.connector.connect(
+        host=MYSQL_HOST,
+        user=MYSQL_USER,
+        password=MYSQL_PASSWORD,
+        database=MYSQL_DATABASE,
+    )
+
+
+def upload_to_mysql(df, conn):
+    cursor = conn.cursor()
+
+
+    insert_query = f"""
+        INSERT IGNORE INTO {MYSQL_TABLE} (
+            account_type, account_id, campaign_id, campaign_name,
+            adset_id, adset_name, ad_id, ad_name, spend,
+            impressions, clicks, date
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """
+
+    rows = df[[
+        'account_type', 'account_id', 'campaign_id', 'campaign_name',
+        'adset_id', 'adset_name', 'ad_id', 'ad_name', 'spend',
+        'impressions', 'clicks', 'date'
+    ]].values.tolist()
+
+    cursor.executemany(insert_query, rows)
+    conn.commit()
+    print(f"Uploaded {cursor.rowcount} rows to MySQL.")
+    cursor.close()
+
 # Main runner
 if __name__ == '__main__':
     print(f"Fetching Meta Ads data from {START_DATE} to {END_DATE}...")
@@ -165,7 +205,12 @@ if __name__ == '__main__':
     data = normalize_data(data)
     data.to_csv(f'{OUTPUT_CSV}.csv', index=False)
     data.to_excel(f'{OUTPUT_CSV}.xlsx', index=False)
-    
+
     upload_to_bigquery(data)
+    conn = connect_mysql()
+    try:
+        upload_to_mysql(data, conn)
+    finally:
+        conn.close()
 
     print(f"Data saved to {OUTPUT_CSV}")
