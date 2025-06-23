@@ -35,11 +35,11 @@ MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
 MYSQL_DATABASE = os.getenv("MYSQL_DATABASE")
 MYSQL_TABLE = os.getenv("MYSQL_TABLE", "ads_data")
 
-# Timeframe
-START_DATE = '2025-01-01'
-END_DATE = '2025-01-02'
-#END_DATE = date.today().isoformat()
-OUTPUT_CSV = f"ads_data_{START_DATE}_to_{END_DATE}"
+# Default timeframe
+TODAY = date.today().isoformat()
+START_DATE = TODAY
+END_DATE = TODAY
+OUTPUT_CSV = ""
 
 # Init API
 FacebookAdsApi.init(APP_ID, APP_SECRET, ACCESS_TOKEN)
@@ -246,8 +246,21 @@ if __name__ == '__main__':
         required=True,
         help="Comma separated list of ad providers (e.g. meta,google)",
     )
+    parser.add_argument(
+        "--start-date",
+        default=TODAY,
+        help="Start date in YYYY-MM-DD format (default: today)",
+    )
+    parser.add_argument(
+        "--end-date",
+        default=TODAY,
+        help="End date in YYYY-MM-DD format (default: today)",
+    )
     args = parser.parse_args()
     AD_PROVIDERS = [p.strip() for p in args.providers.split(',') if p.strip()]
+    START_DATE = args.start_date
+    END_DATE = args.end_date
+    OUTPUT_CSV = f"ads_data_{START_DATE}_to_{END_DATE}"
 
     print(
         f"Fetching ads data from {START_DATE} to {END_DATE} for {', '.join(AD_PROVIDERS)}..."
