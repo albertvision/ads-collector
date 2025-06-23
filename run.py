@@ -19,6 +19,7 @@ AD_ACCOUNT_ID = os.getenv("META_AD_ACCOUNT_ID")
 APP_ID = os.getenv("META_APP_ID")
 APP_SECRET = os.getenv("META_APP_SECRET")
 
+BG_SERVICE_ACCOUNT_JSON = os.getenv("BG_SERVICE_ACCOUNT_JSON")
 BQ_DATASET = os.getenv("BQ_DATASET")
 BQ_TABLE = os.getenv("BQ_TABLE")
 
@@ -32,7 +33,7 @@ OUTPUT_CSV = f"meta_ads_data_{START_DATE}_to_{END_DATE}"
 FacebookAdsApi.init(APP_ID, APP_SECRET, ACCESS_TOKEN)
 
 # Init BigQuery client
-bq_client = bigquery.Client.from_service_account_json('tavex-bg-362510-a76188ff9cfa.json')
+bq_client = bigquery.Client.from_service_account_json(BG_SERVICE_ACCOUNT_JSON)
 table_ref = bq_client.dataset(BQ_DATASET).table(BQ_TABLE)
 
 def get_dates_between(start_date, end_date):
