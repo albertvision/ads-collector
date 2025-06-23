@@ -10,6 +10,7 @@ Ads Collector is a Python script that retrieves advertising insights from the Me
 - Loads the final dataset into a BigQuery table and writes CSV/Excel copies locally.
 - Stores the data in a MySQL table while skipping records that already exist. The table schema is managed via migrations.
 - Easily extendable to additional advertising providers.
+- Providers are implemented as classes in the `providers` package.
 
 ## Configuration
 Create a `.env` file in the project directory with the following variables:
@@ -41,6 +42,8 @@ pip install -r requirements.txt
 python migrate.py  # run once to create/update tables
 python run.py --providers meta,google --start-date 2023-01-01 --end-date 2023-01-02
 ```
+
+The names passed to `--providers` map to classes in the `providers` package.
 
 The script will export `ads_data_<start>_to_<end>.csv` and `.xlsx` files, insert new rows into the configured MySQL table and append data to BigQuery.
 
