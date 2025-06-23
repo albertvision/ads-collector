@@ -1,14 +1,15 @@
 # Ads Collector
 
-Ads Collector is a Python script that retrieves advertising insights from the Meta Ads (Facebook) API and uploads the results to Google BigQuery and a MySQL database. The tool pulls data for each day in a configured date range and saves it as CSV and Excel files in addition to loading it into BigQuery and MySQL.
+Ads Collector is a Python script that retrieves advertising insights from the Meta Ads (Facebook) API, Google Ads and other providers. It uploads the results to Google BigQuery and a MySQL database. The tool pulls data for each day in a configured date range and saves it as CSV and Excel files in addition to loading it into BigQuery and MySQL.
 
 ## Features
-- Connects to the Meta Ads API using credentials stored in a `.env` file.
+- Connects to the Meta Ads and Google Ads APIs using credentials stored in a `.env` file.
 - Iterates through a date range to fetch ad level metrics such as impressions, clicks and spend.
 - Handles API rate limits with an exponential backoff strategy.
 - Normalizes numeric fields and timestamps before saving.
 - Loads the final dataset into a BigQuery table and writes CSV/Excel copies locally.
 - Stores the data in a MySQL table while skipping records that already exist. The table schema is managed via migrations.
+- Easily extendable to additional advertising providers.
 
 ## Configuration
 Create a `.env` file in the project directory with the following variables:
@@ -26,6 +27,8 @@ MYSQL_USER=<MySQL user>
 MYSQL_PASSWORD=<MySQL password>
 MYSQL_DATABASE=<MySQL database name>
 MYSQL_TABLE=<MySQL table name>  # optional, defaults to 'ads_data'
+GOOGLEADS_CONFIG=google-ads.yaml
+GOOGLEADS_CUSTOMER_ID=<google customer id>
 ```
 
 Provide a Google Cloud service account JSON key and update the path in `run.py` if needed. You can also adjust `START_DATE` and `END_DATE` in the script to define the period to collect.
@@ -36,10 +39,10 @@ Install the dependencies and run the script:
 ```
 pip install -r requirements.txt
 python migrate.py  # run once to create/update tables
-python run.py
+python run.py --providers meta,google
 ```
 
-The script will export `meta_ads_data_<start>_to_<end>.csv` and `.xlsx` files, insert new rows into the configured MySQL table and append data to BigQuery.
+The script will export `ads_data_<start>_to_<end>.csv` and `.xlsx` files, insert new rows into the configured MySQL table and append data to BigQuery.
 
 ### Running MySQL with Docker Compose
 
