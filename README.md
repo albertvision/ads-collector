@@ -31,7 +31,7 @@ GOOGLEADS_CONFIG=google-ads.yaml
 GOOGLEADS_CUSTOMER_ID=<google customer id>
 ```
 
-Provide a Google Cloud service account JSON key and update the path in `run.py` if needed. Specify the collection period with the `--start-date` and `--end-date` arguments when running the script. Both default to today.
+Provide a Google Cloud service account JSON key and update the path in `run.py` if needed. Specify the collection period with the `--start-date` and `--end-date` arguments when running the script. Both default to yesterday.
 
 ## Usage
 Install the dependencies and run the script:

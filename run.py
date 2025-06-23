@@ -36,10 +36,7 @@ MYSQL_DATABASE = os.getenv("MYSQL_DATABASE")
 MYSQL_TABLE = os.getenv("MYSQL_TABLE", "ads_data")
 
 # Default timeframe
-TODAY = date.today().isoformat()
-START_DATE = TODAY
-END_DATE = TODAY
-OUTPUT_CSV = ""
+DEFAULT_DATE = (date.today() - timedelta(days=1)).isoformat()
 
 # Init API
 FacebookAdsApi.init(APP_ID, APP_SECRET, ACCESS_TOKEN)
@@ -248,12 +245,12 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--start-date",
-        default=TODAY,
+        default=DEFAULT_DATE,
         help="Start date in YYYY-MM-DD format (default: today)",
     )
     parser.add_argument(
         "--end-date",
-        default=TODAY,
+        default=DEFAULT_DATE,
         help="End date in YYYY-MM-DD format (default: today)",
     )
     args = parser.parse_args()
