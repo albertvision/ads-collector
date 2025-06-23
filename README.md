@@ -31,7 +31,7 @@ GOOGLEADS_CONFIG=google-ads.yaml
 GOOGLEADS_CUSTOMER_ID=<google customer id>
 ```
 
-Provide a Google Cloud service account JSON key and update the path in `run.py` if needed. You can also adjust `START_DATE` and `END_DATE` in the script to define the period to collect.
+Provide a Google Cloud service account JSON key and update the path in `run.py` if needed. Specify the collection period with the `--start-date` and `--end-date` arguments when running the script. Both default to today.
 
 ## Usage
 Install the dependencies and run the script:
@@ -39,7 +39,7 @@ Install the dependencies and run the script:
 ```
 pip install -r requirements.txt
 python migrate.py  # run once to create/update tables
-python run.py --providers meta,google
+python run.py --providers meta,google --start-date 2023-01-01 --end-date 2023-01-02
 ```
 
 The script will export `ads_data_<start>_to_<end>.csv` and `.xlsx` files, insert new rows into the configured MySQL table and append data to BigQuery.
