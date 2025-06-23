@@ -1,0 +1,7 @@
+.DS_Store
+.ssl-key.log
+.env
+.venv/**
+*.csv
+*.xlsx
+*.json
