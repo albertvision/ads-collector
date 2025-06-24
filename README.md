@@ -53,3 +53,19 @@ following defaults if a variable is not provided:
 - root password: `${MYSQL_ROOT_PASSWORD:-root}`
 
 Set matching values in your `.env` file so `src/run.py` can connect.
+
+### Building the Docker Image
+
+Build the production image using the provided `Dockerfile`:
+
+```bash
+docker build -t ads-collector .
+```
+
+Then run the container with your environment variables:
+
+```bash
+docker run --env-file .env ads-collector
+```
+
+The entrypoint applies database migrations before starting the collector.
