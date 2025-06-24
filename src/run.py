@@ -1,8 +1,12 @@
 import os
+import sys
 import pandas as pd
 from datetime import date, datetime, timedelta
 from dotenv import load_dotenv
 import argparse
+
+# Ensure the project root is on the Python path when executing as a script
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.providers import PROVIDER_CLASSES
 from src.storages import STORAGE_CLASSES
