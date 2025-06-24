@@ -4,8 +4,8 @@ from datetime import date, datetime, timedelta
 from dotenv import load_dotenv
 import argparse
 
-from providers import PROVIDER_CLASSES
-from storages import STORAGE_CLASSES
+from src.providers import PROVIDER_CLASSES
+from src.storages import STORAGE_CLASSES
 
 # --- CONFIGURATION ---
 

@@ -3,7 +3,7 @@ from facebook_business.api import FacebookAdsApi
 from facebook_business.adobjects.adaccount import AdAccount
 
 from .base import BaseProvider
-from utils import safe_api_call, get_dates_between
+from ..utils import safe_api_call, get_dates_between
 
 
 class MetaProvider(BaseProvider):
