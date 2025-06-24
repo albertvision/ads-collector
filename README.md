@@ -16,7 +16,9 @@ Ads Collector is a Python script that retrieves advertising insights from the Me
 Copy `.env.example` to `.env` and fill in your credentials. The example file lists
 all supported variables and recommended defaults.
 
-Provide a Google Cloud service account JSON key and update the path in `run.py` if needed. Specify the collection period with the `--start-date` and `--end-date` arguments when running the script. Both default to yesterday.
+Provide a Google Cloud service account JSON key and update the path in
+`src/run.py` if needed. Specify the collection period with the `--start-date`
+and `--end-date` arguments when running the script. Both default to yesterday.
 
 ## Usage
 Install the dependencies and run the script:
@@ -42,7 +44,7 @@ docker compose up -d
 
 This launches MySQL 8 and stores the data in a named volume `mysql_data`.
 Docker Compose reads the connection variables from your `.env` file so the
-container uses the same settings as `run.py`. The service falls back to the
+container uses the same settings as `src/run.py`. The service falls back to the
 following defaults if a variable is not provided:
 
 - database: `${MYSQL_DATABASE:-ads}`
@@ -50,4 +52,4 @@ following defaults if a variable is not provided:
 - password: `${MYSQL_PASSWORD:-ads_password}`
 - root password: `${MYSQL_ROOT_PASSWORD:-root}`
 
-Set matching values in your `.env` file so `run.py` can connect.
+Set matching values in your `.env` file so `src/run.py` can connect.
