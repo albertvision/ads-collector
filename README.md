@@ -25,8 +25,8 @@ Install the dependencies and run the script:
 
 ```
 pip install -r requirements.txt
-python migrate.py  # run once to create/update tables
-python run.py --start-date 2023-01-01 --end-date 2023-01-02
+python src/migrate.py  # run once to create/update tables
+python src/run.py --start-date 2023-01-01 --end-date 2023-01-02
 ```
 
 Providers listed in `AD_PROVIDERS` map to classes in the `providers` package.
