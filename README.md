@@ -55,6 +55,19 @@ following defaults if a variable is not provided:
 
 Set matching values in your `.env` file so `src/run.py` can connect.
 
+### Running the Collector with Docker Compose
+
+The compose file also defines a `collector` service for local development.
+It builds the image from the Dockerfile, mounts the project directory and
+connects to the `mysql` container. Start the stack with:
+
+```bash
+docker compose up --build collector
+```
+
+The collector uses the environment variables from your `.env` file and
+automatically runs migrations before executing `src/run.py`.
+
 ### Building the Docker Image
 
 Build the production image using the provided `Dockerfile`:
