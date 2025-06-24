@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 from datetime import date, datetime, timedelta
 from dotenv import load_dotenv
@@ -38,29 +39,27 @@ def normalize_data(df, provider):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Collect advertising data")
     parser.add_argument(
-        "--providers",
-        required=True,
-        help="Comma separated list of ad providers (e.g. meta,google)",
-    )
-    parser.add_argument(
         "--start-date",
         default=DEFAULT_DATE,
-        help="Start date in YYYY-MM-DD format (default: today)",
+        help="Start date in YYYY-MM-DD format (default: yesterday)",
     )
     parser.add_argument(
         "--end-date",
         default=DEFAULT_DATE,
-        help="End date in YYYY-MM-DD format (default: today)",
-    )
-    parser.add_argument(
-        "--storages",
-        default="csv",
-        help="Comma separated list of storage backends (csv,excel,bigquery,mysql) (default: csv)",
+        help="End date in YYYY-MM-DD format (default: yesterday)",
     )
     args = parser.parse_args()
-    AD_PROVIDERS = [p.strip() for p in args.providers.split(',') if p.strip()]
+
+    providers_env = os.getenv("AD_PROVIDERS")
+    if not providers_env:
+        print("AD_PROVIDERS environment variable not set. Exiting.")
+        exit(1)
+    AD_PROVIDERS = [p.strip() for p in providers_env.split(',') if p.strip()]
+
+    storages_env = os.getenv("STORAGES", "csv")
+    STORAGE_NAMES = [s.strip() for s in storages_env.split(',') if s.strip()]
+
     START_DATE = args.start_date
-    STORAGE_NAMES = [s.strip() for s in args.storages.split(",") if s.strip()]
     STORAGES = []
     for sname in STORAGE_NAMES:
         cls = STORAGE_CLASSES.get(sname)
@@ -75,7 +74,8 @@ if __name__ == '__main__':
     OUTPUT_CSV = f"ads_data_{START_DATE}_to_{END_DATE}"
 
     print(
-        f"Fetching ads data from {START_DATE} to {END_DATE} for {', '.join(AD_PROVIDERS)}..."
+        "Fetching ads data from %s to %s for %s..."
+        % (START_DATE, END_DATE, ", ".join(AD_PROVIDERS))
     )
     
     # cast date ranges
