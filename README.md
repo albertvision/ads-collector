@@ -83,3 +83,7 @@ docker run --env-file .env ads-collector
 ```
 
 The entrypoint applies database migrations before starting the collector.
+
+### Continuous Deployment
+
+A GitHub Actions workflow builds and publishes the Docker image to GitHub Packages when changes are merged into the main branch. The image will be available at ghcr.io/<owner>/ads-collector.
