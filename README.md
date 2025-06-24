@@ -7,7 +7,7 @@ Ads Collector is a Python script that retrieves advertising insights from the Me
 - Iterates through a date range to fetch ad level metrics such as impressions, clicks and spend.
 - Handles API rate limits with an exponential backoff strategy.
 - Normalizes numeric fields and timestamps before saving.
-- Supports multiple storage backends (CSV, Excel, BigQuery, MySQL) configured via the `--storages` argument.
+- Supports multiple storage backends (CSV, Excel, BigQuery, MySQL) configured via the `STORAGES` environment variable.
 - Stores the data in a MySQL table while skipping records that already exist. The table schema is managed via migrations.
 - Easily extendable to additional advertising providers.
 - Providers are implemented as classes in the `providers` package.
@@ -30,6 +30,8 @@ MYSQL_DATABASE=<MySQL database name>
 MYSQL_TABLE=<MySQL table name>  # optional, defaults to 'ads_data'
 GOOGLEADS_CONFIG=google-ads.yaml
 GOOGLEADS_CUSTOMER_ID=<google customer id>
+AD_PROVIDERS=meta,google
+STORAGES=csv,excel,bigquery,mysql
 ```
 
 Provide a Google Cloud service account JSON key and update the path in `run.py` if needed. Specify the collection period with the `--start-date` and `--end-date` arguments when running the script. Both default to yesterday.
@@ -40,11 +42,11 @@ Install the dependencies and run the script:
 ```
 pip install -r requirements.txt
 python migrate.py  # run once to create/update tables
-python run.py --providers meta,google --start-date 2023-01-01 --end-date 2023-01-02 --storages csv,excel,bigquery,mysql
+python run.py --start-date 2023-01-01 --end-date 2023-01-02
 
-The names passed to `--providers` map to classes in the `providers` package.
+Providers listed in `AD_PROVIDERS` map to classes in the `providers` package.
 
-The script saves results to the selected storage backends.
+The script saves results to the storage backends listed in `STORAGES`.
 
 ### Running MySQL with Docker Compose
 
