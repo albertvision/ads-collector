@@ -13,26 +13,8 @@ Ads Collector is a Python script that retrieves advertising insights from the Me
 - Providers are implemented as classes in the `providers` package.
 
 ## Configuration
-Create a `.env` file in the project directory with the following variables:
-
-```
-META_ACCESS_TOKEN=<your Meta access token>
-META_AD_ACCOUNT_ID=<ad account id>
-META_APP_ID=<app id>
-META_APP_SECRET=<app secret>
-BG_SERVICE_ACCOUNT_JSON=<BQ service account JSON>
-BQ_DATASET=<BigQuery dataset name>
-BQ_TABLE=<BigQuery table name>
-MYSQL_HOST=<MySQL host>
-MYSQL_USER=<MySQL user>
-MYSQL_PASSWORD=<MySQL password>
-MYSQL_DATABASE=<MySQL database name>
-MYSQL_TABLE=<MySQL table name>  # optional, defaults to 'ads_data'
-GOOGLEADS_CONFIG=google-ads.yaml
-GOOGLEADS_CUSTOMER_ID=<google customer id>
-AD_PROVIDERS=meta,google
-STORAGES=csv,excel,bigquery,mysql
-```
+Copy `.env.example` to `.env` and fill in your credentials. The example file lists
+all supported variables and recommended defaults.
 
 Provide a Google Cloud service account JSON key and update the path in
 `src/run.py` if needed. Specify the collection period with the `--start-date`
@@ -43,8 +25,9 @@ Install the dependencies and run the script:
 
 ```
 pip install -r requirements.txt
-python src/migrate.py  # run once to create/update tables
-python src/run.py --start-date 2023-01-01 --end-date 2023-01-02
+python migrate.py  # run once to create/update tables
+python run.py --start-date 2023-01-01 --end-date 2023-01-02
+```
 
 Providers listed in `AD_PROVIDERS` map to classes in the `providers` package.
 
