@@ -1,34 +1,18 @@
 import pandas as pd
 from datetime import date, datetime, timedelta
-from google.cloud import bigquery
-import mysql.connector
-import os
 from dotenv import load_dotenv
 import argparse
 
 from providers import PROVIDER_CLASSES
+from storages import STORAGE_CLASSES
 
 # --- CONFIGURATION ---
 
 load_dotenv()
 
 
-BG_SERVICE_ACCOUNT_JSON = os.getenv("BG_SERVICE_ACCOUNT_JSON")
-BQ_DATASET = os.getenv("BQ_DATASET")
-BQ_TABLE = os.getenv("BQ_TABLE")
-
-MYSQL_HOST = os.getenv("MYSQL_HOST")
-MYSQL_USER = os.getenv("MYSQL_USER")
-MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
-MYSQL_DATABASE = os.getenv("MYSQL_DATABASE")
-MYSQL_TABLE = os.getenv("MYSQL_TABLE", "ads_data")
-
-# Default timeframe
 DEFAULT_DATE = (date.today() - timedelta(days=1)).isoformat()
 
-# Init BigQuery client
-bq_client = bigquery.Client.from_service_account_json(BG_SERVICE_ACCOUNT_JSON)
-table_ref = bq_client.dataset(BQ_DATASET).table(BQ_TABLE)
 
 def normalize_data(df, provider):
     df['account_type'] = provider
@@ -50,64 +34,6 @@ def normalize_data(df, provider):
     
     return df
 
-def generate_bq_schema(df):
-    dtype_map = {
-        'int64': 'INTEGER',
-        'float64': 'FLOAT',
-        'bool': 'BOOLEAN',
-        'datetime64[ns]': 'DATE',
-        'object': 'STRING'
-    }
-    
-    return [
-        bigquery.SchemaField(col, dtype_map.get(str(dtype), 'STRING'))
-        for col, dtype in df.dtypes.items()
-    ]
-    
-def upload_to_bigquery(df):
-    schema=generate_bq_schema(df)
-    
-    job_config = bigquery.LoadJobConfig(
-        write_disposition="WRITE_APPEND",
-        # schema=schema
-    )
-    job = bq_client.load_table_from_dataframe(df, table_ref, job_config=job_config)
-    job.result()  # Wait for job to complete
-    print(f"Uploaded {len(df)} rows to BigQuery.")
-
-def connect_mysql():
-    """Create a MySQL connection using .env settings."""
-    return mysql.connector.connect(
-        host=MYSQL_HOST,
-        user=MYSQL_USER,
-        password=MYSQL_PASSWORD,
-        database=MYSQL_DATABASE,
-    )
-
-
-def upload_to_mysql(df, conn):
-    cursor = conn.cursor()
-
-
-    insert_query = f"""
-        INSERT IGNORE INTO {MYSQL_TABLE} (
-            account_type, account_id, campaign_id, campaign_name,
-            adset_id, adset_name, ad_id, ad_name, spend,
-            impressions, clicks, date
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-    """
-
-    rows = df[[
-        'account_type', 'account_id', 'campaign_id', 'campaign_name',
-        'adset_id', 'adset_name', 'ad_id', 'ad_name', 'spend',
-        'impressions', 'clicks', 'date'
-    ]].values.tolist()
-
-    cursor.executemany(insert_query, rows)
-    conn.commit()
-    print(f"Uploaded {cursor.rowcount} rows to MySQL.")
-    cursor.close()
-
 # Main runner
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Collect advertising data")
@@ -126,9 +52,25 @@ if __name__ == '__main__':
         default=DEFAULT_DATE,
         help="End date in YYYY-MM-DD format (default: today)",
     )
+    parser.add_argument(
+        "--storages",
+        default="csv",
+        help="Comma separated list of storage backends (csv,excel,bigquery,mysql) (default: csv)",
+    )
     args = parser.parse_args()
     AD_PROVIDERS = [p.strip() for p in args.providers.split(',') if p.strip()]
     START_DATE = args.start_date
+    STORAGE_NAMES = [s.strip() for s in args.storages.split(",") if s.strip()]
+    STORAGES = []
+    for sname in STORAGE_NAMES:
+        cls = STORAGE_CLASSES.get(sname)
+        if not cls:
+            print(f"Unknown storage: {sname}")
+            continue
+        STORAGES.append(cls())
+    if not STORAGES:
+        print("No valid storage services specified. Exiting.")
+        exit(1)
     END_DATE = args.end_date
     OUTPUT_CSV = f"ads_data_{START_DATE}_to_{END_DATE}"
 
@@ -164,14 +106,8 @@ if __name__ == '__main__':
 
     data = pd.concat(data_frames, ignore_index=True)
     data = data.sort_values('date')
-    data.to_csv(f'{OUTPUT_CSV}.csv', index=False)
-    data.to_excel(f'{OUTPUT_CSV}.xlsx', index=False)
 
-    upload_to_bigquery(data)
-    conn = connect_mysql()
-    try:
-        upload_to_mysql(data, conn)
-    finally:
-        conn.close()
+    for storage in STORAGES:
+        storage.save(data, OUTPUT_CSV)
 
     print(f"Data saved to {OUTPUT_CSV}")
