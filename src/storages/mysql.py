@@ -40,6 +40,6 @@ class MySQLStorage(BaseStorage):
         ]].values.tolist()
         cursor.executemany(insert_query, rows)
         conn.commit()
-        logger.info("Uploaded %s rows to MySQL.", cursor.rowcount)
+        logger.info("Uploaded %s rows", cursor.rowcount)
         cursor.close()
         conn.close()

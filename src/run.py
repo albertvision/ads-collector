@@ -81,7 +81,7 @@ if __name__ == '__main__':
         exit(1)
     END_DATE = args.end_date
     OUTPUT_CSV = f"ads_data_{START_DATE}_to_{END_DATE}"
-    logger.info("Fetching ads data from %s to %s for %s...", START_DATE, END_DATE, ", ".join(AD_PROVIDERS))
+    logger.info("Fetching ads data from %s to %s...", START_DATE, END_DATE)
     
     # cast date ranges
     if isinstance(START_DATE, str):
@@ -97,6 +97,7 @@ if __name__ == '__main__':
             logger.warning("Unknown provider: %s", provider_name)
             continue
 
+        logger.info("Fetching data from provider: %s", provider_name)
         provider = provider_cls()
         provider_data = provider.fetch_data(START_DATE, END_DATE)
 

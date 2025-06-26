@@ -35,4 +35,4 @@ class BigQueryStorage(BaseStorage):
         job_config = bigquery.LoadJobConfig(write_disposition="WRITE_APPEND")
         job = self.client.load_table_from_dataframe(df, self.table_ref, job_config=job_config)
         job.result()
-        logger.info("Uploaded %s rows to BigQuery.", len(df))
+        logger.info("Uploaded %s rows", len(df))

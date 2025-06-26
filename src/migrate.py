@@ -45,6 +45,7 @@ for fname in files:
     path = os.path.join(MIGRATIONS_DIR, fname)
     with open(path, 'r') as f:
         sql = f.read()
+    logger.info("Applying migration %s...", fname)
     for statement in [s.strip() for s in sql.split(';') if s.strip()]:
         cursor.execute(statement)
     cursor.execute(
