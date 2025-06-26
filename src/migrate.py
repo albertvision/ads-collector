@@ -1,8 +1,13 @@
 import os
+import logging
 import mysql.connector
 from dotenv import load_dotenv
+from src.utils import setup_logging
 
 load_dotenv()
+setup_logging()
+
+logger = logging.getLogger(__name__)
 
 MYSQL_HOST = os.getenv("MYSQL_HOST")
 MYSQL_USER = os.getenv("MYSQL_USER")
@@ -40,9 +45,9 @@ for fname in files:
         cursor.execute(statement)
     cursor.execute(
         "INSERT INTO schema_migrations (filename) VALUES (%s)",
-        (fname,)
+        (fname,),
     )
-    print(f"Applied migration {fname}")
+    logger.info("Applied migration %s", fname)
 
 conn.commit()
 cursor.close()

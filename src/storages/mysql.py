@@ -1,7 +1,11 @@
 import os
+import logging
 import mysql.connector
 
 from .base import BaseStorage
+
+
+logger = logging.getLogger(__name__)
 
 
 class MySQLStorage(BaseStorage):
@@ -36,6 +40,6 @@ class MySQLStorage(BaseStorage):
         ]].values.tolist()
         cursor.executemany(insert_query, rows)
         conn.commit()
-        print(f"Uploaded {cursor.rowcount} rows to MySQL.")
+        logger.info("Uploaded %s rows to MySQL.", cursor.rowcount)
         cursor.close()
         conn.close()

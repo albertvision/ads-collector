@@ -1,6 +1,10 @@
 import os
+import logging
 
 from .base import BaseStorage
+
+
+logger = logging.getLogger(__name__)
 
 
 class CSVStorage(BaseStorage):
@@ -10,4 +14,4 @@ class CSVStorage(BaseStorage):
         os.makedirs("dist", exist_ok=True)
         path = os.path.join("dist", f"{output_name}.csv")
         df.to_csv(path, index=False)
-        print(f"Saved CSV to {path}")
+        logger.info("Saved CSV to %s", path)
