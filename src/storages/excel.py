@@ -1,6 +1,10 @@
 import os
+import logging
 
 from .base import BaseStorage
+
+
+logger = logging.getLogger(__name__)
 
 
 class ExcelStorage(BaseStorage):
@@ -10,4 +14,4 @@ class ExcelStorage(BaseStorage):
         os.makedirs("dist", exist_ok=True)
         path = os.path.join("dist", f"{output_name}.xlsx")
         df.to_excel(path, index=False)
-        print(f"Saved Excel to {path}")
+        logger.info("Saved Excel to %s", path)

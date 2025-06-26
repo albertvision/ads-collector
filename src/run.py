@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 import pandas as pd
 from datetime import date, datetime, timedelta
 from dotenv import load_dotenv
@@ -10,6 +11,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.providers import PROVIDER_CLASSES
 from src.storages import STORAGE_CLASSES
+from src.utils import setup_logging
+
+logger = logging.getLogger(__name__)
 
 # --- CONFIGURATION ---
 
@@ -41,6 +45,7 @@ def normalize_data(df, provider):
 
 # Main runner
 if __name__ == '__main__':
+    setup_logging()
     parser = argparse.ArgumentParser(description="Collect advertising data")
     parser.add_argument(
         "--start-date",
@@ -56,7 +61,7 @@ if __name__ == '__main__':
 
     providers_env = os.getenv("AD_PROVIDERS")
     if not providers_env:
-        print("AD_PROVIDERS environment variable not set. Exiting.")
+        logger.error("AD_PROVIDERS environment variable not set. Exiting.")
         exit(1)
     AD_PROVIDERS = [p.strip() for p in providers_env.split(',') if p.strip()]
 
@@ -68,19 +73,15 @@ if __name__ == '__main__':
     for sname in STORAGE_NAMES:
         cls = STORAGE_CLASSES.get(sname)
         if not cls:
-            print(f"Unknown storage: {sname}")
+            logger.warning("Unknown storage: %s", sname)
             continue
         STORAGES.append(cls())
     if not STORAGES:
-        print("No valid storage services specified. Exiting.")
+        logger.error("No valid storage services specified. Exiting.")
         exit(1)
     END_DATE = args.end_date
     OUTPUT_CSV = f"ads_data_{START_DATE}_to_{END_DATE}"
-
-    print(
-        "Fetching ads data from %s to %s for %s..."
-        % (START_DATE, END_DATE, ", ".join(AD_PROVIDERS))
-    )
+    logger.info("Fetching ads data from %s to %s for %s...", START_DATE, END_DATE, ", ".join(AD_PROVIDERS))
     
     # cast date ranges
     if isinstance(START_DATE, str):
@@ -93,7 +94,7 @@ if __name__ == '__main__':
     for provider_name in AD_PROVIDERS:
         provider_cls = PROVIDER_CLASSES.get(provider_name)
         if not provider_cls:
-            print(f"Unknown provider: {provider_name}")
+            logger.warning("Unknown provider: %s", provider_name)
             continue
 
         provider = provider_cls()
@@ -105,7 +106,7 @@ if __name__ == '__main__':
             data_frames.append(df)
 
     if not data_frames:
-        print("No data fetched. Exiting.")
+        logger.info("No data fetched. Exiting.")
         exit(0)
 
     data = pd.concat(data_frames, ignore_index=True)
@@ -114,4 +115,4 @@ if __name__ == '__main__':
     for storage in STORAGES:
         storage.save(data, OUTPUT_CSV)
 
-    print(f"Data saved to {OUTPUT_CSV}")
+    logger.info("Data saved to %s", OUTPUT_CSV)

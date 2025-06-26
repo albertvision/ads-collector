@@ -11,6 +11,7 @@ Ads Collector is a Python script that retrieves advertising insights from the Me
 - Stores the data in a MySQL table while skipping records that already exist. The table schema is managed via migrations.
 - Easily extendable to additional advertising providers.
 - Loads environment variables from a `.env` file using `python-dotenv`.
+- Logs progress and errors to stdout using Python's `logging` module.
 - Providers are implemented as classes in the `providers` package.
 
 ## Configuration
