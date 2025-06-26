@@ -1,8 +1,12 @@
 import os
+import sys
 import logging
 import mysql.connector
 from dotenv import load_dotenv
-from src.utils import setup_logging
+from utils import setup_logging
+
+# Ensure the project root is on the Python path when executing as a script
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 load_dotenv()
 setup_logging()
