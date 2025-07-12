@@ -13,6 +13,7 @@ Ads Collector is a Python script that retrieves advertising insights from the Me
 - Loads environment variables from a `.env` file using `python-dotenv`.
 - Logs progress and errors to stdout using Python's `logging` module.
 - Providers are implemented as classes in the `providers` package.
+- Automatically collects data from all Meta ad accounts available to the token, or a subset specified via `META_AD_ACCOUNT_ID`.
 
 ## Configuration
 Copy `.env.example` to `.env` and fill in your credentials. The example file lists
